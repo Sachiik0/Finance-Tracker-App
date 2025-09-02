@@ -61,10 +61,11 @@ export default function LandingPage() {
       // Check if email exists
       const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).single();
       const isNewUser = !existingUser;
+      const redirectUrl = `${process.env.NEXT_PUBLIC_APP_DOMAIN}${isNewUser ? '/landing?onboarding=true' : '/home'}`;
 
       const { error: magicError } = await supabase.auth.signInWithOtp({
         email,
-        options: { emailRedirectTo: window.location.origin + (isNewUser ? '/landing?onboarding=true' : '/home') }
+        options:{ emailRedirectTo: redirectUrl }
       });
       if (magicError) throw magicError;
 
