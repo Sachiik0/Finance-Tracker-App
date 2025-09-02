@@ -1,5 +1,5 @@
 // File: app/landing/page.tsx
-// Purpose: Landing page with magic link login/register and step-by-step onboarding for new users
+// Purpose: Landing page with magic link login and step-by-step onboarding for new users
 
 'use client';
 
@@ -43,6 +43,8 @@ export default function LandingPage() {
   const toast = useToast();
   const router = useRouter();
 
+  const redirectDomain = process.env.NEXT_PUBLIC_APP_DOMAIN || 'http://localhost:3000';
+
   // Handle magic link login/register
   const handleMagicLink = async () => {
     if (!email) return toast({ title: 'Email required', description: 'Please enter your email.' });
@@ -51,7 +53,7 @@ export default function LandingPage() {
     setMessage(null);
 
     try {
-      // Check if email exists
+      // Check if profile exists
       const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).single();
       const isNewUser = !existingUser;
 
@@ -59,7 +61,7 @@ export default function LandingPage() {
       const { error: magicError } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: window.location.origin + (isNewUser ? '/landing?onboarding=true' : '/'),
+          emailRedirectTo: `${redirectDomain}?onboarding=${isNewUser ? 'true' : 'false'}`,
         },
       });
       if (magicError) throw magicError;
@@ -114,7 +116,7 @@ export default function LandingPage() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Registration failed');
 
-      router.push('/'); // Redirect to home
+      router.push('/home'); // Redirect to home after onboarding
     } catch (err: any) {
       setStepError(err.message || 'Unexpected error.');
     } finally {
@@ -124,9 +126,20 @@ export default function LandingPage() {
 
   // Check if redirected from magic link to show onboarding
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('onboarding') === 'true') setShowOnboarding(true);
-  }, []);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Check if profile exists
+        const { data: profile } = await supabase.from('profiles').select('id').eq('id', session.user.id).single();
+        if (profile) {
+          router.push('/home');
+        } else {
+          setShowOnboarding(true);
+        }
+      }
+    };
+    checkSession();
+  }, [router]);
 
   if (showOnboarding) {
     const step = questions[currentStep];
@@ -203,3 +216,4 @@ export default function LandingPage() {
     </div>
   );
 }
+// Note: Ensure NEXT_PUBLIC_APP_DOMAIN is set in .env.local for proper redirection
