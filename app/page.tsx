@@ -54,28 +54,44 @@ export default function LandingPage() {
   }, [router]);
 
   const handleMagicLink = async () => {
-    if (!email) return toast({ title: 'Email required', description: 'Please enter your email.' });
-    setLoading(true); setError(null); setMessage(null);
+  if (!email) return toast({ title: 'Email required', description: 'Please enter your email.' });
+  setLoading(true); 
+  setError(null); 
+  setMessage(null);
 
-    try {
-      // Check if email exists
-      const { data: existingUser } = await supabase.from('profiles').select('id').eq('email', email).single();
-      const isNewUser = !existingUser;
-      const redirectUrl = `${process.env.NEXT_PUBLIC_APP_DOMAIN}${isNewUser ? '/landing?onboarding=true' : '/home'}`;
+  try {
+    // Check if email exists
+    const { data: existingUser } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .single();
 
-      const { error: magicError } = await supabase.auth.signInWithOtp({
-        email,
-        options:{ emailRedirectTo: redirectUrl }
-      });
-      if (magicError) throw magicError;
+    const isNewUser = !existingUser;
 
-      setMessage('Check your email for the magic link! Open it to continue.');
-    } catch (err: any) {
-      setError(err.message || 'Unexpected error.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    // ✅ Use current site domain instead of hardcoding
+    const baseUrl = typeof window !== "undefined" 
+      ? window.location.origin 
+      : process.env.NEXT_PUBLIC_APP_DOMAIN || "http://localhost:3000";
+
+    const redirectUrl = `${baseUrl}${isNewUser ? '/landing?onboarding=true' : '/home'}`;
+
+    const { error: magicError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectUrl },
+    });
+
+    if (magicError) throw magicError;
+
+    setMessage('Check your email for the magic link! Open it to continue.');
+  } catch (err: any) {
+    setError(err.message || 'Unexpected error.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const handleChange = (key: string, value: any) => { setAnswers(prev => ({ ...prev, [key]: value })); setStepError(''); };
 
